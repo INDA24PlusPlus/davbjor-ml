@@ -102,19 +102,6 @@ vector<ld> pair_mult(vector<ld> A, vector<ld> B){
     return r;
 }
 
-void add_bias(vector<vector<ld>> &A, vector<ld> &B){
-    int n = A.size();
-    int m = B.size();
-    // A = n rows, m elements;
-    // B = m elements
-
-    for(int i = 0; i < n; i++){
-        for(int j = 0; j < m; j++){
-            A[i][j] += B[j];
-        }
-    }
-}
-
 /*
 ADD 2D VECTORS
 */
@@ -224,20 +211,32 @@ void print_size(vector<vector<ld>> &A){
     cout << "size: " << A.size() << " x " << A[0].size() << "\n";
 }
 
+/*
+TESTS:
+    {
+    lr = 0.0003
+    hidden_count = 128
+    epochs = 5
+    }
+    => 51% correct
+
+
+*/
+
 struct ML {
-    ld lr = 0.001;
+    ld lr = 0.0003;
     int input_count = 28*28;
-    int hidden_count = 48;
+    int hidden_count = 128;
     int hidden_layers = 2;
     int output_count = 10;
 
     int guess = 0;
     
     // [INPUT_COUNT]
-    vector<ld> input;
+    vector<ld> input = vector<ld> (28*28);
 
     // [OUTPUT_COUNT]
-    vector<ld> label;
+    vector<ld> label = vector<ld> (10,0);
 
     // [INPUT_COUNT][HIDDEN_COUNT]
     vector<vector<ld>> wih;
@@ -401,7 +400,7 @@ struct ML {
     LOADS A TRAINING IMAGE AS A 28*28 VECTOR, TAKEN FROM (index) IN TRAINING SET (0-60000)
     */
     void load_image(int index){
-        if(label.size() != 10)label.resize(10,0);
+        //if(label.size() != 10)label.resize(10,0);
         for(int i = 0; i < 10; i++)label[i] = 0;
 
         if(input.size() != 28*28)input.resize(28*28);
@@ -411,13 +410,14 @@ struct ML {
             }
         }
         label[image_label[index]] = 1;
+        //cout << "SET LABEL TO : " << image_label[index] << "\n";
     }
 
     /*
     LOADS A TEST IMAGE AS A 28*28 VECTOR, TAKEN FROM (index) IN TEST SET (0-10000)
     */
     void load_test(int index){
-        if(label.size()!=10)label.resize(10);
+        //if(label.size()!=10)label.resize(10);
         for(int i = 0; i < 10; i++)label[i] = 0;
 
         if(input.size() != 28*28)input.resize(28*28);
@@ -461,10 +461,9 @@ struct ML {
         int n = output.size();
 
         for(int i = 0; i < n; i++){
-            cout << output[i] << " ";
+            //cout << "calc_loss " << output[i] << " - " << target[i] << "\n";
             loss += output[i] - target[i];
         }
-        cout << "\n";
 
         return loss;
     }
@@ -485,7 +484,7 @@ struct ML {
         vector<ld> r (n);
 
         for(int i = 0; i < n; i++){
-            r[i] = target[i] * log(output[i]);
+            r[i] = -target[i] * log(output[i]);
         }
 
         return r;
@@ -588,6 +587,10 @@ struct ML {
 
         /* STARTING BACKPROP */
         ld output_loss = cross_entropy_loss(yj, label);
+        
+        /*for(auto x : label)cout << x << " ";
+        cout << "\n";*/
+        //ld output_loss = calc_loss(yj, label);
 
         /* READ ERRORS PER LAYER */
         //vector<ld> output_errors = find_cross_entropy(yj, label);
@@ -735,10 +738,10 @@ struct ML {
 
     void train(){
         for(int e = 0; e < 50; e++){
-            for(int i = 0; i < 12000; i++){
-                load_image(0);
+            for(int i = (e%5)*12000; i < 12000 + (e%5)*12000; i++){
+                load_image(i);
                 ld loss = backprop();
-                if(i%100==0)cout << "e" << e << "." << i << " -> " << guess << "-> LOSS: " << loss << "\n";
+                if(i%200==0)cout << "e" << e << "." << i << " -> " << guess << "-> LOSS: " << loss << "\n";
             }
             test_program();
         }
