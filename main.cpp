@@ -81,7 +81,7 @@ void add_bias(vector<vector<ld>> &A, vector<ld> &B){
 
 struct NN {
     int BATCH_SIZE;
-    ld LEARNING_RATE = 0.002;
+    ld LEARNING_RATE = 0.01;
 
     // X = [layer][batch_count][node_count] - input data at every node
     vector<vector<vector<ld>>> x {};
@@ -254,7 +254,11 @@ struct NN {
                 for(int j = 0; j < x[i+1].size(); j++){
                     softmax(x[i+1][j]);
                 }
-
+                cout << "Guess:\n";
+                for(int j = 0; j < 10; j++){
+                    cout << x[i+1][0][j] << " ";
+                }
+                cout << "\n";
                 break;
             }
 
@@ -310,7 +314,6 @@ struct NN {
                 }
 
                 // w[i-1] = np.matmul((x[i] - one_hot_y), x[i-1].T)
-                //cout << "create wT\n";
                 vector<vector<ld>> wT (w[i-1][0].size(), vector<ld> (w[i-1].size()));
                 multiply(aT, x[i-1], wT);
                 
@@ -327,7 +330,12 @@ struct NN {
                 UPDATE B AND W FROM GRADIENT
                 */                
 
-                for(int j = 0; j < 10; j++) b[i][j] -= b_g[i][j] * LEARNING_RATE;
+                cout << "Update B gradient:\n";
+                for(int j = 0; j < 10; j++){
+                    cout << b_g[i][j] << " ";
+                    b[i][j] -= b_g[i][j] * LEARNING_RATE;
+                }
+                cout << "\n";
 
                 for(int j = 0; j < w[i-1].size(); j++){
                     for(int k = 0; k < w[i-1][0].size(); k++){
@@ -456,7 +464,7 @@ struct NN {
 int main(){
     input();
     
-    /*
+    
     int print_nums = 1;
     for(int k = 0; k < print_nums; k++){
         for(int i = 0; i < 30; i++){
@@ -466,7 +474,7 @@ int main(){
             cout << "\n";
         }
         cout << label[k] << "\n";
-    }*/
+    }
    
 
     /*nn.load_batch(batch_size, rand_batch(batch_size));*/
