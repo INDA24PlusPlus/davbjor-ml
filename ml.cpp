@@ -214,29 +214,20 @@ void print_size(vector<vector<ld>> &A){
 /*
 TESTS:
     {
-    lr = 0.0003
-    hidden_count = 128
-    epochs = 5
-    }
-    => 51% correct
-
-    {
-    lr = 0.0003;
+    lr = 0.11;
     hidden_count = 64;
     middle_count = 32;
-    epochs = 5
+    epochs = 3
     }
-    => 59% correct
-    (TESTED: 5000/5000 -> 0.4122)
-
-
+    => 82% correct
+    (TESTED: 5000/5000 -> 0.1806)
 
 */
 
 struct ML {
-    ld lr = 0.0003;
+    ld lr = 0.11;
     int input_count = 28*28;
-    int hidden_count = 64;
+    int hidden_count = 32;
     int middle_count = 32;
 
     int output_count = 10;
@@ -252,16 +243,16 @@ struct ML {
     // [INPUT_COUNT][HIDDEN_COUNT]
     vector<vector<ld>> wih;
 
-    // [HIDDEN_COUNT][HIDDEN_COUNT]
+    // [HIDDEN_COUNT][MIDDLE_COUNT]
     vector<vector<ld>> whm;
 
-    // [HIDDEN_COUNT][OUTPUT_COUNT]
+    // [MIDDLE_COUNT][OUTPUT_COUNT]
     vector<vector<ld>> wmo;
 
     // [HIDDEN_COUNT]
     vector<ld> bih;
 
-    // [HIDDEN_COUNT]
+    // [MIDDLE_COUNT]
     vector<ld> bhm;
 
     // [OUTPUT_COUNT]
@@ -594,7 +585,8 @@ struct ML {
         );
 
         //vector<vector<ld>> final_outputs = sigmoid_mat(final_inputs);
-        vector<ld> final_outputs = softmax(final_inputs[0]);
+        //vector<ld> final_outputs = softmax(final_inputs[0]);
+        vector<ld> final_outputs = sigmoid_vec(final_inputs[0]);
 
         //vector<ld> yj = final_outputs[0];
         vector<ld> yj = final_outputs;
@@ -627,10 +619,10 @@ struct ML {
             transpose(middle_outputs),
             vec_to_col(pair_mult(
                 output_errors, 
-                yj
+                dsigmoid_vec(yj)
             ))
         );
-        //dsigmoid_vec(yj)
+        //yj
 
         vector<vector<ld>> whm_g = mat_mult(
             transpose(hidden_outputs),
@@ -652,6 +644,7 @@ struct ML {
         for(int i = 0; i < middle_count; i++){
             for(int j = 0; j < output_count; j++){
                 wmo[i][j] -= lr * wmo_g[i][j];
+                //if(i == 0 && j == 0)cout << lr * wmo_g[i][j] << "\n";
             }
         }
         for(int i = 0; i < hidden_count; i++){
@@ -668,9 +661,9 @@ struct ML {
         // CALCULATE B GRADIENTS
         vector<ld> bmo_g = pair_mult(
             output_errors,
-            yj
+            dsigmoid_vec(yj)
         );
-        //dsigmoid_vec(yj)
+        //yj
         
         vector<ld> bhm_g = pair_mult(
             middle_errors, 
