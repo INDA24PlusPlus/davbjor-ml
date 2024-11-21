@@ -220,14 +220,25 @@ TESTS:
     }
     => 51% correct
 
+    {
+    lr = 0.0003;
+    hidden_count = 64;
+    middle_count = 32;
+    epochs = 5
+    }
+    => 59% correct
+    (TESTED: 5000/5000 -> 0.4122)
+
+
 
 */
 
 struct ML {
     ld lr = 0.0003;
     int input_count = 28*28;
-    int hidden_count = 128;
-    int hidden_layers = 2;
+    int hidden_count = 64;
+    int middle_count = 32;
+
     int output_count = 10;
 
     int guess = 0;
@@ -242,19 +253,19 @@ struct ML {
     vector<vector<ld>> wih;
 
     // [HIDDEN_COUNT][HIDDEN_COUNT]
-    vector<vector<ld>> whh;
+    vector<vector<ld>> whm;
 
     // [HIDDEN_COUNT][OUTPUT_COUNT]
-    vector<vector<ld>> who;
+    vector<vector<ld>> wmo;
 
     // [HIDDEN_COUNT]
     vector<ld> bih;
 
     // [HIDDEN_COUNT]
-    vector<ld> bhh;
+    vector<ld> bhm;
 
     // [OUTPUT_COUNT]
-    vector<ld> bho;
+    vector<ld> bmo;
 
     // [LAYERS][BATCH_SIZE][INPUT_COUNT]
     vector<vector<vector<ld>>> activations {};
@@ -265,7 +276,8 @@ struct ML {
     ML() {
         default_random_engine generator;
         normal_distribution<long double> hidden_distribution(0, 1 / sqrt(input_count));
-        normal_distribution<long double> output_distribution(0, 1 / sqrt(hidden_count));
+        normal_distribution<long double> middle_distribution(0, 1 / sqrt(hidden_count));
+        normal_distribution<long double> output_distribution(0, 1 / sqrt(middle_count));
 
         // SET HIDDEN WEIGHTS TO STANDARD DEVIATION OF sqrt of input_count
         wih.resize(input_count, vector<ld> (hidden_count));
@@ -277,20 +289,20 @@ struct ML {
         }
 
         // SET HIDDEN WEIGHTS TO STANDARD DEVIATION OF sqrt of hidden_count
-        whh.resize(hidden_count, vector<ld> (hidden_count));
-        bhh.resize(hidden_count);
+        whm.resize(hidden_count, vector<ld> (middle_count));
+        bhm.resize(middle_count);
         for(int i = 0; i < hidden_count; i++){
-            for(int j = 0; j < hidden_count; j++){
-                whh[i][j] = output_distribution(generator);
+            for(int j = 0; j < middle_count; j++){
+                whm[i][j] = middle_distribution(generator);
             }
         }
 
         // SET OUTPUT WEIGHTS TO STANDARD DEVIATION OF sqrt of input_count
-        who.resize(hidden_count, vector<ld> (output_count));
-        bho.resize(output_count);
-        for(int i = 0; i < hidden_count; i++){
+        wmo.resize(middle_count, vector<ld> (output_count));
+        bmo.resize(output_count);
+        for(int i = 0; i < middle_count; i++){
             for(int j = 0; j < output_count; j++){
-                who[i][j] = output_distribution(generator);
+                wmo[i][j] = output_distribution(generator);
             }
         }
     };
@@ -532,16 +544,16 @@ struct ML {
 
         /*START MIDDLE*/
         vector<vector<ld>> middle_inputs = mat_add(
-            mat_mult(hidden_outputs, whh),
-            vec_to_col(bhh)
+            mat_mult(hidden_outputs, whm),
+            vec_to_col(bhm)
         );
 
         vector<vector<ld>> middle_outputs = sigmoid_mat(middle_inputs);
         /*END MIDDLE*/
 
         vector<vector<ld>> final_inputs = mat_add(
-            mat_mult(middle_outputs, who, false),
-            vec_to_col(bho)
+            mat_mult(middle_outputs, wmo, false),
+            vec_to_col(bmo)
         );
 
         //vector<vector<ld>> final_outputs = sigmoid_mat(final_inputs);
@@ -553,6 +565,10 @@ struct ML {
         return yj;
     }
 
+
+    /*
+    INSPIRATION FROM https://www.pycodemates.com/2023/04/coding-a-neural-network-from-scratch-using-python.html
+    */
     ld backprop(){
         bool comment = false;
 
@@ -565,16 +581,16 @@ struct ML {
 
         /*START MIDDLE*/
         vector<vector<ld>> middle_inputs = mat_add(
-            mat_mult(hidden_outputs, whh),
-            vec_to_col(bhh)
+            mat_mult(hidden_outputs, whm),
+            vec_to_col(bhm)
         );
 
         vector<vector<ld>> middle_outputs = sigmoid_mat(middle_inputs);
         /*END MIDDLE*/
 
         vector<vector<ld>> final_inputs = mat_add(
-            mat_mult(middle_outputs, who, false),
-            vec_to_col(bho)
+            mat_mult(middle_outputs, wmo, false),
+            vec_to_col(bmo)
         );
 
         //vector<vector<ld>> final_outputs = sigmoid_mat(final_inputs);
@@ -598,16 +614,16 @@ struct ML {
 
         vector<ld> middle_errors = mat_mult(
             vec_to_col(output_errors),
-            transpose(who)
+            transpose(wmo)
         )[0];
 
         vector<ld> hidden_errors = mat_mult(
             vec_to_col(middle_errors),
-            transpose(whh)
+            transpose(whm)
         )[0];
 
         // CALCULATE W GRADIENTS
-        vector<vector<ld>> who_g = mat_mult(
+        vector<vector<ld>> wmo_g = mat_mult(
             transpose(middle_outputs),
             vec_to_col(pair_mult(
                 output_errors, 
@@ -616,7 +632,7 @@ struct ML {
         );
         //dsigmoid_vec(yj)
 
-        vector<vector<ld>> whh_g = mat_mult(
+        vector<vector<ld>> whm_g = mat_mult(
             transpose(hidden_outputs),
             vec_to_col(pair_mult(
                 middle_errors, 
@@ -633,14 +649,14 @@ struct ML {
         );
         
         // WRITE W GRAIDENT TO W
-        for(int i = 0; i < hidden_count; i++){
+        for(int i = 0; i < middle_count; i++){
             for(int j = 0; j < output_count; j++){
-                who[i][j] -= lr * who_g[i][j];
+                wmo[i][j] -= lr * wmo_g[i][j];
             }
         }
         for(int i = 0; i < hidden_count; i++){
-            for(int j = 0; j < hidden_count; j++){
-                whh[i][j] -= lr * whh_g[i][j];
+            for(int j = 0; j < middle_count; j++){
+                whm[i][j] -= lr * whm_g[i][j];
             }
         }
         for(int i = 0; i < input_count; i++){
@@ -650,13 +666,13 @@ struct ML {
         }
 
         // CALCULATE B GRADIENTS
-        vector<ld> bho_g = pair_mult(
+        vector<ld> bmo_g = pair_mult(
             output_errors,
             yj
         );
         //dsigmoid_vec(yj)
         
-        vector<ld> bhh_g = pair_mult(
+        vector<ld> bhm_g = pair_mult(
             middle_errors, 
             dsigmoid_vec(middle_outputs[0])
         );
@@ -668,10 +684,10 @@ struct ML {
 
         /* WRITE B GRADIENTS TO B */
         for(int i = 0; i < output_count; i++){
-            bho[i] -= lr * bho_g[i];
+            bmo[i] -= lr * bmo_g[i];
         }
-        for(int i = 0; i < hidden_count; i++){
-            bhh[i] -= lr * bhh_g[i];
+        for(int i = 0; i < middle_count; i++){
+            bhm[i] -= lr * bhm_g[i];
         }
         for(int i = 0; i < hidden_count; i++){
             bih[i] -= lr * bih_g[i];
@@ -738,7 +754,7 @@ struct ML {
 
     void train(){
         for(int e = 0; e < 50; e++){
-            for(int i = (e%5)*12000; i < 12000 + (e%5)*12000; i++){
+            for(int i = (e%10)*6000; i < 6000 + (e%10)*6000; i++){
                 load_image(i);
                 ld loss = backprop();
                 if(i%200==0)cout << "e" << e << "." << i << " -> " << guess << "-> LOSS: " << loss << "\n";
